@@ -1,4 +1,4 @@
-name: Deploy to Minikube
+name: Deploy to Minikube on EC2
 
 on:
   push:
@@ -8,42 +8,22 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
-      - name: Set up SSH
-        uses: appleboy/ssh-action@v0.1.7
+      - name: Set up SSH key for EC2 access
+        uses: webfactory/ssh-agent@v0.5.3
         with:
-          host: ${{ secrets.EC2_PUBLIC_IP }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          script: |
-            if [ ! -f $HOME/.kube/config ]; then
-              mkdir -p $HOME/.kube
-              sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-              sudo chown ubuntu:ubuntu $HOME/.kube/config
-            fi
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
-      - name: Upload Kubernetes manifests
-        uses: appleboy/scp-action@v0.1.2
-        with:
-          source: k8s-manifests/*
-          target: /home/ubuntu/k8s-manifests/
-          host: ${{ secrets.EC2_PUBLIC_IP }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-
-      - name: Apply Kubernetes Manifests on EC2
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_PUBLIC_IP }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          script: |
-            export KUBECONFIG=$HOME/.kube/config
+      - name: Deploy to Minikube
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ${{ secrets.EC2_SSH_PRIVATE_KEY }} ec2-user@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
             kubectl apply -f /home/ubuntu/k8s-manifests/deployment.yaml
             kubectl apply -f /home/ubuntu/k8s-manifests/service.yaml
-            kubectl get all
+          EOF
 
+       
 
