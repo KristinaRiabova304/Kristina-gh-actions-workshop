@@ -9,15 +9,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: 'latest'
 
-      - name: Set up SSH for EC2 access
+      - name: Set up kubeconfig on EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.EC2_PUBLIC_IP }}
@@ -27,23 +24,26 @@ jobs:
             mkdir -p $HOME/.kube
             sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
             sudo chown ubuntu:ubuntu $HOME/.kube/config
-            cat $HOME/.kube/config > $HOME/kubeconfig
+            echo "Kubeconfig set up completed."
 
-      - name: Download kubeconfig from EC2
+
+      - name: Download kubeconfig
         uses: appleboy/scp-action@v0.1.2
         with:
-          source: $HOME/kubeconfig
+          source: $HOME/.kube/config
           target: ./kubeconfig
           host: ${{ secrets.EC2_PUBLIC_IP }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
-      - name: Use Minikube Kubeconfig
+
+      - name: Set up kubectl
         run: |
           mkdir -p $HOME/.kube
           mv ./kubeconfig $HOME/.kube/config
           export KUBECONFIG=$HOME/.kube/config
           kubectl config view
+
 
       - name: Apply Kubernetes Manifests
         run: |
