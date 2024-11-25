@@ -17,7 +17,30 @@ jobs:
         with:
           version: 'latest'
 
+      - name: Set up SSH for EC2 access
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_PUBLIC_IP }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          script: |
+           
+            mkdir -p $HOME/.kube
+            sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+            sudo chown ubuntu:ubuntu $HOME/.kube/config
+            
+            
+            cat $HOME/.kube/config > ./kubeconfig
+
+      - name: Use Minikube Kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          mv ./kubeconfig $HOME/.kube/config
+          export KUBECONFIG=$HOME/.kube/config
+          kubectl config view
+
       - name: Apply Kubernetes Manifests
         run: |
           kubectl apply -f k8s-manifests/deployment.yaml
           kubectl apply -f k8s-manifests/service.yaml
+
