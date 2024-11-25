@@ -20,7 +20,8 @@ jobs:
 
       - name: Deploy to Minikube
         run: |
-          ssh -o StrictHostKeyChecking=no -i ${{ secrets.EC2_SSH_PRIVATE_KEY }} ec2-user@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
+          # SSH to EC2 and apply Kubernetes manifests
+          ssh -o StrictHostKeyChecking=no ec2-user@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
             kubectl apply -f /home/ubuntu/k8s-manifests/deployment.yaml
             kubectl apply -f /home/ubuntu/k8s-manifests/service.yaml
           EOF
