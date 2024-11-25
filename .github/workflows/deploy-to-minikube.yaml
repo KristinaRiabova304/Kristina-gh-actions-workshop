@@ -9,45 +9,41 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v3
 
-
-      - name: Set up kubeconfig on EC2
+      - name: Set up SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.EC2_PUBLIC_IP }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
-            mkdir -p $HOME/.kube
-            sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-            sudo chown ubuntu:ubuntu $HOME/.kube/config
-            echo "Kubeconfig set up completed."
+            if [ ! -f $HOME/.kube/config ]; then
+              mkdir -p $HOME/.kube
+              sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+              sudo chown ubuntu:ubuntu $HOME/.kube/config
+            fi
 
-
-      - name: Download kubeconfig
+      - name: Upload Kubernetes manifests
         uses: appleboy/scp-action@v0.1.2
         with:
-          source: $HOME/.kube/config
-          target: ./kubeconfig
+          source: k8s-manifests/*
+          target: /home/ubuntu/k8s-manifests/
           host: ${{ secrets.EC2_PUBLIC_IP }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
 
-
-      - name: Set up kubectl
-        run: |
-          mkdir -p $HOME/.kube
-          mv ./kubeconfig $HOME/.kube/config
-          export KUBECONFIG=$HOME/.kube/config
-          kubectl config view
-
-
-      - name: Apply Kubernetes Manifests
-        run: |
-          kubectl apply -f k8s-manifests/deployment.yaml
-          kubectl apply -f k8s-manifests/service.yaml
+      - name: Apply Kubernetes Manifests on EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_PUBLIC_IP }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          script: |
+            export KUBECONFIG=$HOME/.kube/config
+            kubectl apply -f /home/ubuntu/k8s-manifests/deployment.yaml
+            kubectl apply -f /home/ubuntu/k8s-manifests/service.yaml
+            kubectl get all
 
 
